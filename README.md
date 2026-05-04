@@ -1,28 +1,30 @@
 # Food Atlas
 
-Food Atlas is an Astro website for storing recipes and products in markdown so they are easy to:
+Food Atlas is an Astro website that generates recipe and product pages from a normalized SQLite database.
 
 - browse as a normal website,
 - parse as machine-readable content,
 - index and retrieve with LLM-based tools.
 
+Both static generation and runtime data access use the same local SQLite database powered by the Turso engine.
+
 ## Core Goals
 
-- Keep recipes and products in markdown files.
-- Include rich, structured recipe metadata in frontmatter.
+- Keep recipes and products in a normalized SQLite database.
+- Include rich, structured recipe and product metadata.
 - Support allergy-aware filtering.
 - Link alternative recipes together (for substitutions).
 - Embed a recipe scaler in each recipe page (ingredients + prep/cook timing).
 - Keep project intent and conventions documented in this README.
 
-## Recipe Schema
+## Recipe Model
 
-Each recipe markdown file in `src/content/recipes/` includes:
+Each recipe record includes:
 
 - `name`
 - `yieldServings`
 - `ingredients` list
-	- each ingredient can include: `quantity`, `unit`, `item`, `note`, `scalable`
+  - each ingredient can include: `quantity`, `unit`, `item`, `note`, `scalable`
 - `prepMinutes`, `cookMinutes`
 - optional `bakeTempC`, `bakeTimeMinutes`
 - `equipment`
@@ -35,11 +37,9 @@ Each recipe markdown file in `src/content/recipes/` includes:
 - `alternatives` (links by recipe slug)
 - optional `source`
 
-This structure is validated with Astro content collections in `src/content.config.ts`.
+## Product Model
 
-## Product Schema
-
-Each product markdown file in `src/content/products/` includes:
+Each product record includes:
 
 - `name`
 - `description`
@@ -63,33 +63,75 @@ Each product markdown file in `src/content/products/` includes:
 
 ## Storage Model
 
-- Canonical storage is markdown in `src/content/recipes/` and `src/content/products/`.
+- Canonical data lives in `data/food.db`.
+- Astro pages read directly from SQLite during static generation.
+- Runtime data access also reads from SQLite through `src/lib/db.ts`.
+- Browser local editing uses a separate OPFS database copy (`food-atlas-user.db`) seeded from `/db-seed.json`.
+- Users can download their edited local database from `/local-data/` as a `.db` file.
+- The old markdown corpus is no longer part of the app.
 - ODS is not used as a runtime database.
-- SQLite is not required for the current version because Astro content collections already provide structured, typed access to markdown entries.
 
-## DDKK Migration
+## Database Model
 
-If you want to migrate starter content from the DDKK spreadsheet once, place it in project root as `DDKK.ods`, then run:
+The runtime database is normalized across the main entities instead of storing one big document blob:
 
-```sh
-npm run import:ddkk
-```
+- `recipes`
+- `recipe_ingredients`
+- `recipe_steps`
+- `recipe_nutrition`
+- `equipment`
+- `allergens`
+- `tags`
+- `recipe_equipment`
+- `recipe_allergens`
+- `recipe_tags`
+- `recipe_alternatives`
+- `products`
+- `product_nutrition`
+- `product_allergens`
+- `product_tags`
+- `product_related_recipes`
 
-Importer script:
+Recipe and product pages are built from these normalized tables instead of document files.
 
-- file: `scripts/import-ddkk.mjs`
-- output folder: `src/content/recipes/`
-- detects common column names in Slovak/English
-- parses ingredient lines and generates markdown frontmatter
-- is intended as a one-time import helper only
+## Local Turso
 
-After importing, manually review generated recipes to refine parsing quality.
+- Local database engine: `@tursodatabase/database`
+- Browser database engine: `@tursodatabase/database-wasm`
+- Default local database file: `data/food.db`
+- Override path with `FOOD_ATLAS_DB_PATH`
+
+Static generation and server-side reads use the checked-in SQLite file directly.
+
+## Offline Support
+
+- A service worker caches visited pages for offline browsing.
+- A browser-side Turso WASM database stores visited page metadata and local editable content in OPFS when cross-origin isolation is available.
+- Development headers for `COOP` and `COEP` are enabled in `astro.config.mjs`.
+- A static `_headers` file is included for hosts that support it.
+
+This means the app can work offline after pages have been visited, while still using a proper normalized database at runtime.
+
+## Static And Dynamic Data Use
+
+- Static pages are generated from SQLite at build time.
+- Dynamic page data access should also go through `src/lib/db.ts` so the same database remains authoritative.
+- Client-side local editing and export are available on `/local-data/` and run fully in the browser without a backend.
+
+## Frontend-Only Local Editing
+
+- No backend is required for editing or export.
+- `/db-seed.json` is generated at build time from `data/food.db` and shipped as static JSON.
+- On first visit to `/local-data/`, the browser creates a local SQLite DB in OPFS and imports the seed snapshot.
+- Edits in `/local-data/` modify only the local DB copy and do not modify `data/food.db` on the host.
+- The local editor currently supports recipe name/prep/cook, ingredients, steps, tags, and allergens.
+- The `Download Local DB` action exports the current local DB to a SQLite `.db` file for user backup/sharing.
+- This flow requires cross-origin isolation (`COOP`/`COEP`) and browser support for OPFS + SharedArrayBuffer.
 
 ## Commands
 
 ```sh
 npm install
-npm run import:ddkk   # optional, after DDKK.ods is present
 npm run dev
 npm run build
 npm run preview
@@ -97,7 +139,7 @@ npm run preview
 
 ## Content Notes For LLM Use
 
-- Keep frontmatter consistent and explicit.
-- Prefer normalized tags and allergens (lowercase).
+- Query the normalized tables instead of reading markdown files.
+- Prefer normalized tags and allergens (lowercase) in stored records.
 - Keep procedures as ordered, concise steps.
 - Add cross-links through `alternatives` and `relatedRecipes`.

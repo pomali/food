@@ -1,0 +1,15 @@
+{
+  "name": "Food Atlas",
+  "short_name": "Food Atlas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff6e8",
+  "theme_color": "#a24715",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

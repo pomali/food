@@ -4,7 +4,7 @@ interface Props {
   description?: string;
 }
 
-const { title, description = "Recipe and product knowledge base in markdown" } = Astro.props;
+const { title, description = "Recipe and product knowledge base backed by SQLite" } = Astro.props;
 ---
 
 <html lang="en">
@@ -15,6 +15,7 @@ const { title, description = "Recipe and product knowledge base in markdown" } =
     <meta name="generator" content={Astro.generator} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>{title}</title>
     <style>
       :root {
@@ -116,9 +117,30 @@ const { title, description = "Recipe and product knowledge base in markdown" } =
         <nav class="nav" aria-label="Primary">
           <a href="/">Recipes</a>
           <a href="/#products">Products</a>
+          <a href="/local-data/">Local Data</a>
         </nav>
       </header>
       <slot />
     </main>
+    <script>
+      import { initOfflineDatabase } from "../lib/browser/offline";
+
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch((error) => {
+          console.warn("Service worker registration failed", error);
+        });
+      }
+
+      const path = window.location.pathname;
+      const kind = path.startsWith("/recipes/") ? "recipe" : path.startsWith("/products/") ? "product" : "index";
+      const content = document.querySelector("main")?.innerText ?? "";
+
+      initOfflineDatabase({
+        path,
+        title: document.title,
+        kind,
+        content,
+      });
+    </script>
   </body>
 </html>

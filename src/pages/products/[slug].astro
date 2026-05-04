@@ -1,45 +1,43 @@
 ---
-import { getCollection, render, type CollectionEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getProductBySlug, getProductSlugs, type ProductDetail } from "../../lib/db";
 
 interface Props {
-  product: CollectionEntry<"products">;
+  product: ProductDetail;
 }
 
 export async function getStaticPaths() {
-  const products = await getCollection("products");
-  return products.map((product) => ({
-    params: { slug: product.id },
-    props: { product },
-  }));
+  const slugs = await getProductSlugs();
+  return Promise.all(
+    slugs.map(async (slug: string) => ({
+      params: { slug },
+      props: { product: await getProductBySlug(slug) },
+    })),
+  );
 }
 
 const { product } = Astro.props as Props;
-const { Content } = await render(product);
-const recipeLinks = (await getCollection("recipes")).filter((recipe: CollectionEntry<"recipes">) =>
-  product.data.relatedRecipes.includes(recipe.id),
-);
 ---
 
-<BaseLayout title={`${product.data.name} | Product`} description={product.data.description}>
+<BaseLayout title={`${product.name} | Product`} description={product.description}>
   <article class="card" style="padding:1rem;">
-    <h2 style="margin-top:0;">{product.data.name}</h2>
-    <p style="margin-top:0;">{product.data.description}</p>
-    <p class="muted">Category: {product.data.category}</p>
+    <h2 style="margin-top:0;">{product.name}</h2>
+    <p style="margin-top:0;">{product.description}</p>
+    <p class="muted">Category: {product.category}</p>
 
     <section>
       <h3>Allergens</h3>
-      <p>{product.data.allergens.length ? product.data.allergens.join(", ") : "No declared allergens."}</p>
+      <p>{product.allergens.length ? product.allergens.join(", ") : "No declared allergens."}</p>
     </section>
 
-    {product.data.nutritionPer100g ? (
+    {product.nutritionPer100g ? (
       <section>
         <h3>Nutrition per 100 g</h3>
         <ul style="padding-left:1.2rem;">
-          {product.data.nutritionPer100g.caloriesKcal ? <li>{product.data.nutritionPer100g.caloriesKcal} kcal</li> : null}
-          {product.data.nutritionPer100g.proteinG ? <li>{product.data.nutritionPer100g.proteinG} g protein</li> : null}
-          {product.data.nutritionPer100g.carbsG ? <li>{product.data.nutritionPer100g.carbsG} g carbs</li> : null}
-          {product.data.nutritionPer100g.fatG ? <li>{product.data.nutritionPer100g.fatG} g fat</li> : null}
+          {product.nutritionPer100g.caloriesKcal ? <li>{product.nutritionPer100g.caloriesKcal} kcal</li> : null}
+          {product.nutritionPer100g.proteinG ? <li>{product.nutritionPer100g.proteinG} g protein</li> : null}
+          {product.nutritionPer100g.carbsG ? <li>{product.nutritionPer100g.carbsG} g carbs</li> : null}
+          {product.nutritionPer100g.fatG ? <li>{product.nutritionPer100g.fatG} g fat</li> : null}
         </ul>
       </section>
     ) : null}
@@ -47,16 +45,16 @@ const recipeLinks = (await getCollection("recipes")).filter((recipe: CollectionE
     <section>
       <h3>Tags</h3>
       <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
-        {product.data.tags.map((tag: string) => <span class="pill">{tag}</span>)}
+        {product.tags.map((tag: string) => <span class="pill">{tag}</span>)}
       </div>
     </section>
 
-    {recipeLinks.length ? (
+    {product.relatedRecipes.length ? (
       <section>
         <h3>Used in Recipes</h3>
         <ul style="padding-left:1.2rem;">
-          {recipeLinks.map((recipe: CollectionEntry<"recipes">) => (
-            <li><a href={`/recipes/${recipe.id}/`}>{recipe.data.name}</a></li>
+          {product.relatedRecipes.map((recipe) => (
+            <li><a href={`/recipes/${recipe.slug}/`}>{recipe.name}</a></li>
           ))}
         </ul>
       </section>
@@ -64,7 +62,7 @@ const recipeLinks = (await getCollection("recipes")).filter((recipe: CollectionE
 
     <section>
       <h3>Notes</h3>
-      <Content />
+      <div set:html={product.notesHtml} />
     </section>
   </article>
 </BaseLayout>

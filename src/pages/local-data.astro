@@ -1,0 +1,845 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Local Data | Food Atlas" description="Edit your local SQLite copy in browser and download it.">
+  <style>
+    .editor-container {
+      display: grid;
+      gap: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header-section {
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .header-section h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    .status-bar {
+      padding: 1rem;
+      border-radius: 12px;
+      background: rgba(79, 172, 254, 0.1);
+      border: 1px solid rgba(79, 172, 254, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-bar.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .status-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4face;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-bar.error .status-icon {
+      background: #ef4444;
+    }
+
+    .recipe-selector {
+      display: grid;
+      gap: 1rem;
+      padding: 1.5rem;
+      background: var(--bg2, #fafaf9);
+      border-radius: 12px;
+      border: 1px solid var(--line);
+    }
+
+    .recipe-selector label {
+      display: grid;
+      gap: 0.5rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .recipe-selector select {
+      padding: 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 1rem;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .recipe-selector select:hover {
+      border-color: #4face;
+    }
+
+    .recipe-selector select:focus {
+      outline: none;
+      border-color: #4face;
+      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .tab-btn {
+      padding: 0.75rem 1rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s ease;
+      margin-bottom: -1rem;
+      padding-bottom: 1.75rem;
+    }
+
+    .tab-btn:hover {
+      color: #333;
+    }
+
+    .tab-btn.active {
+      color: #4face;
+      border-bottom-color: #4face;
+    }
+
+    .editor-section {
+      display: grid;
+      gap: 1.5rem;
+      padding: 2rem;
+      background: var(--bg2, #fafaf9);
+      border-radius: 12px;
+      border: 1px solid var(--line);
+    }
+
+    .editor-section.hidden {
+      display: none;
+    }
+
+    .form-group {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #333;
+    }
+
+    .form-group.two-col {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      padding: 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .form-group input:hover,
+    .form-group textarea:hover {
+      border-color: #ccc;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #4face;
+      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .hint-text {
+      font-size: 0.85rem;
+      color: #999;
+      margin-top: -0.25rem;
+    }
+
+    .ingredient-preview {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e5e5e0;
+    }
+
+    .ingredient-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+      align-items: start;
+    }
+
+    .ingredient-qty {
+      font-weight: 600;
+      min-width: 50px;
+      color: #4face;
+    }
+
+    .ingredient-text {
+      display: grid;
+      gap: 0.25rem;
+    }
+
+    .ingredient-text strong {
+      display: block;
+    }
+
+    .ingredient-note {
+      font-size: 0.85rem;
+      color: #999;
+      font-style: italic;
+    }
+
+    .step-preview {
+      margin-top: 1rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .step-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: white;
+      border-radius: 8px;
+      border-left: 3px solid #4face;
+    }
+
+    .step-number {
+      font-weight: 700;
+      color: #4face;
+      min-width: 30px;
+    }
+
+    .tags-section {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      min-height: 2rem;
+      padding: 0.5rem;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e5e5e0;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.7rem;
+      background: #4face;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+    }
+
+    button.primary {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      background: #4face;
+      color: white;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: #2196f3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+    }
+
+    button.primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      padding: 0.75rem 1.5rem;
+      border: 1px solid var(--line);
+      background: white;
+      color: #333;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    button.secondary:hover:not(:disabled) {
+      border-color: #4face;
+      color: #4face;
+      background: rgba(79, 172, 254, 0.05);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .result-message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      border: 1px solid var(--line);
+    }
+
+    .result-message.success {
+      background: rgba(34, 197, 94, 0.1);
+      border-color: rgba(34, 197, 94, 0.3);
+      color: #22c55e;
+    }
+
+    .result-message.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+    }
+
+    .stats-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      padding: 2rem;
+      background: var(--bg2, #fafaf9);
+      border-radius: 12px;
+      border: 1px solid var(--line);
+    }
+
+    .stat-box {
+      padding: 1.5rem;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e5e5e0;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #4face;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+    @media (max-width: 640px) {
+      .editor-container {
+        gap: 1rem;
+      }
+
+      .editor-section {
+        padding: 1.5rem;
+      }
+
+      .form-group.two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .tabs {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .header-section h1 {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+
+  <article class="editor-container">
+    <!-- Header -->
+    <section class="header-section">
+      <h1>Recipe Editor</h1>
+      <p style="color: #666; margin: 0;">
+        Edit recipes locally in your browser. All changes stay on your device.
+      </p>
+    </section>
+
+    <!-- Status -->
+    <div id="status-container" class="status-bar">
+      <span class="status-icon"></span>
+      <p id="status" style="margin: 0;">Initializing local database...</p>
+    </div>
+
+    <!-- Recipe Selector -->
+    <div class="recipe-selector">
+      <label for="recipe-select">
+        📖 Select a Recipe
+      </label>
+      <select id="recipe-select"></select>
+    </div>
+
+    <!-- Editor Tabs -->
+    <div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="overview">Overview</button>
+        <button class="tab-btn" data-tab="ingredients">Ingredients</button>
+        <button class="tab-btn" data-tab="steps">Steps</button>
+        <button class="tab-btn" data-tab="tags">Tags & Info</button>
+      </div>
+
+      <!-- Overview Tab -->
+      <section id="tab-overview" class="editor-section">
+        <div class="form-group">
+          <label for="recipe-name">Recipe Name</label>
+          <input id="recipe-name" type="text" placeholder="e.g., Classic Chocolate Chip Cookies" />
+        </div>
+
+        <div class="form-group two-col">
+          <div>
+            <label for="recipe-prep">Prep Time (minutes)</label>
+            <input id="recipe-prep" type="number" min="0" step="1" placeholder="15" />
+          </div>
+          <div>
+            <label for="recipe-cook">Cook Time (minutes)</label>
+            <input id="recipe-cook" type="number" min="0" step="1" placeholder="12" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="save-recipe" class="primary">💾 Save Recipe</button>
+          <button id="download-db" class="secondary">⬇️ Download Database</button>
+        </div>
+
+        <div id="action-result"></div>
+      </section>
+
+      <!-- Ingredients Tab -->
+      <section id="tab-ingredients" class="editor-section hidden">
+        <div class="form-group">
+          <label for="recipe-ingredients">Ingredients</label>
+          <p class="hint-text">Format: quantity | unit | item | note | scalable (0 or 1)</p>
+          <textarea id="recipe-ingredients" placeholder="2 | cups | flour | all-purpose | 1&#10;1 | tsp | vanilla | extract | 1&#10;0.5 | tsp | salt | | 1"></textarea>
+          <div id="ingredients-preview" class="ingredient-preview" style="display: none;">
+            <strong>Preview:</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Steps Tab -->
+      <section id="tab-steps" class="editor-section hidden">
+        <div class="form-group">
+          <label for="recipe-steps">Cooking Steps</label>
+          <p class="hint-text">Enter one step per line</p>
+          <textarea id="recipe-steps" placeholder="Preheat oven to 375°F&#10;Mix dry ingredients in a bowl&#10;Combine wet ingredients&#10;Mix everything together&#10;Bake for 12-15 minutes until golden"></textarea>
+          <div id="steps-preview" class="step-preview" style="display: none;">
+            <strong>Preview:</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tags Tab -->
+      <section id="tab-tags" class="editor-section hidden">
+        <div class="tags-section">
+          <div class="form-group">
+            <label for="recipe-tags">Tags</label>
+            <p class="hint-text">Comma-separated: dessert, quick, vegetarian</p>
+            <input id="recipe-tags" type="text" placeholder="e.g., dessert, quick, no-dairy" />
+            <div id="tags-container" class="tags-container" style="display: none;"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="recipe-allergens">Allergens</label>
+            <p class="hint-text">Comma-separated: nuts, dairy, gluten</p>
+            <input id="recipe-allergens" type="text" placeholder="e.g., peanuts, wheat, milk" />
+            <div id="allergens-container" class="tags-container" style="display: none;"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Stats -->
+    <section class="stats-section">
+      <div class="stat-box">
+        <div class="stat-number" id="recipe-count">0</div>
+        <div class="stat-label">Recipes</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="product-count">0</div>
+        <div class="stat-label">Products</div>
+      </div>
+      <div class="stat-box">
+        <div id="db-mode" class="stat-label" style="color: #4face; font-weight: 600; font-size: 1rem; margin-top: 0;">Database</div>
+        <div id="db-status" class="stat-label" style="margin-top: 0.25rem;">Initializing...</div>
+      </div>
+    </section>
+  </article>
+</BaseLayout>
+
+<script>
+  // @ts-nocheck
+  import {
+    downloadLocalDatabase,
+    ensureLocalEditableDatabase,
+    getLocalDatabaseMode,
+    getLocalRecipeEditor,
+    getLocalStats,
+    listLocalRecipes,
+    saveLocalRecipeEditor,
+  } from "../lib/browser/local-db";
+
+  const statusContainer = document.getElementById("status-container");
+  const status = document.getElementById("status");
+  const actionResult = document.getElementById("action-result");
+  const recipeSelect = document.getElementById("recipe-select");
+  const recipeName = document.getElementById("recipe-name");
+  const recipePrep = document.getElementById("recipe-prep");
+  const recipeCook = document.getElementById("recipe-cook");
+  const recipeIngredients = document.getElementById("recipe-ingredients");
+  const recipeSteps = document.getElementById("recipe-steps");
+  const recipeTags = document.getElementById("recipe-tags");
+  const recipeAllergens = document.getElementById("recipe-allergens");
+  const saveRecipe = document.getElementById("save-recipe");
+  const downloadDb = document.getElementById("download-db");
+  const recipeCount = document.getElementById("recipe-count");
+  const productCount = document.getElementById("product-count");
+  const dbMode = document.getElementById("db-mode");
+  const dbStatus = document.getElementById("db-status");
+  const ingredientsPreview = document.getElementById("ingredients-preview");
+  const stepsPreview = document.getElementById("steps-preview");
+  const tagsContainer = document.getElementById("tags-container");
+  const allergensContainer = document.getElementById("allergens-container");
+
+  const recipeLookup = new Map();
+
+  /** @param {string} input */
+  function parseList(input) {
+    return input
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  /** @param {Array<{ quantity: number | null; unit: string; item: string; note: string; scalable: boolean }>} ingredients */
+  function formatIngredients(ingredients) {
+    return ingredients
+      .map((ingredient) => {
+        const quantity = ingredient.quantity === null || ingredient.quantity === undefined ? "" : String(ingredient.quantity);
+        const unit = ingredient.unit || "";
+        const item = ingredient.item || "";
+        const note = ingredient.note || "";
+        const scalable = ingredient.scalable ? "1" : "0";
+        return [quantity, unit, item, note, scalable].join(" | ");
+      })
+      .join("\n");
+  }
+
+  /** @param {string} input */
+  function parseIngredients(input) {
+    const parsed = [];
+    for (const line of input.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const parts = trimmed.split("|").map((part) => part.trim());
+      const quantityPart = parts[0] || "";
+      const unitPart = parts[1] || "";
+      const itemPart = parts[2] || "";
+      const notePart = parts[3] || "";
+      const scalablePart = (parts[4] || "1").toLowerCase();
+
+      if (!itemPart) continue;
+
+      const quantityNumber = Number(quantityPart);
+      parsed.push({
+        quantity: quantityPart === "" || !Number.isFinite(quantityNumber) ? null : quantityNumber,
+        unit: unitPart,
+        item: itemPart,
+        note: notePart,
+        scalable: scalablePart !== "0" && scalablePart !== "false" && scalablePart !== "no",
+      });
+    }
+    return parsed;
+  }
+
+  // Tab switching
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  tabBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tabName = btn.dataset.tab;
+      
+      // Update buttons
+      tabBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      // Update sections
+      document.querySelectorAll(".editor-section").forEach((section) => {
+        section.classList.add("hidden");
+      });
+      const targetSection = document.getElementById(`tab-${tabName}`);
+      if (targetSection) {
+        targetSection.classList.remove("hidden");
+      }
+      
+      // Generate previews
+      updatePreview();
+    });
+  });
+
+  // Update ingredient and step previews
+  const updatePreview = () => {
+    // Ingredients preview
+    const ingredients = parseIngredients(recipeIngredients.value);
+    if (ingredients.length > 0) {
+      ingredientsPreview.innerHTML = "<strong>Preview:</strong>";
+      ingredients.forEach((ing) => {
+        const qty = ing.quantity !== null ? `${ing.quantity} ${ing.unit}`.trim() : ing.unit;
+        const html = `
+          <div class="ingredient-item">
+            <div class="ingredient-qty">${qty || "—"}</div>
+            <div class="ingredient-text">
+              <strong>${ing.item}</strong>
+              ${ing.note ? `<span class="ingredient-note">${ing.note}</span>` : ""}
+            </div>
+          </div>
+        `;
+        ingredientsPreview.innerHTML += html;
+      });
+      ingredientsPreview.style.display = "block";
+    } else {
+      ingredientsPreview.style.display = "none";
+    }
+
+    // Steps preview
+    const steps = recipeSteps.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (steps.length > 0) {
+      stepsPreview.innerHTML = "<strong>Preview:</strong>";
+      steps.forEach((step, index) => {
+        const html = `
+          <div class="step-item">
+            <div class="step-number">${index + 1}.</div>
+            <div>${step}</div>
+          </div>
+        `;
+        stepsPreview.innerHTML += html;
+      });
+      stepsPreview.style.display = "grid";
+    } else {
+      stepsPreview.style.display = "none";
+    }
+
+    // Tags preview
+    const tags = parseList(recipeTags.value);
+    if (tags.length > 0) {
+      tagsContainer.innerHTML = tags.map((tag) => `<span class="tag">${tag}</span>`).join("");
+      tagsContainer.style.display = "flex";
+    } else {
+      tagsContainer.style.display = "none";
+    }
+
+    // Allergens preview
+    const allergens = parseList(recipeAllergens.value);
+    if (allergens.length > 0) {
+      allergensContainer.innerHTML = allergens
+        .map((allergen) => `<span class="tag" style="background: #ef4444;">${allergen}</span>`)
+        .join("");
+      allergensContainer.style.display = "flex";
+    } else {
+      allergensContainer.style.display = "none";
+    }
+  };
+
+  recipeIngredients.addEventListener("input", updatePreview);
+  recipeSteps.addEventListener("input", updatePreview);
+  recipeTags.addEventListener("input", updatePreview);
+  recipeAllergens.addEventListener("input", updatePreview);
+
+  const renderSelectedRecipe = () => {
+    const selected = recipeLookup.get(recipeSelect.value);
+    if (!selected) return;
+    recipeName.value = selected.name;
+    recipePrep.value = String(selected.prepMinutes);
+    recipeCook.value = String(selected.cookMinutes);
+  };
+
+  const loadRecipeEditor = async () => {
+    const slug = recipeSelect.value;
+    if (!slug) return;
+
+    const editor = await getLocalRecipeEditor(slug);
+    if (!editor) {
+      recipeIngredients.value = "";
+      recipeSteps.value = "";
+      recipeTags.value = "";
+      recipeAllergens.value = "";
+      updatePreview();
+      return;
+    }
+
+    recipeIngredients.value = formatIngredients(editor.ingredients);
+    recipeSteps.value = editor.steps.join("\n");
+    recipeTags.value = editor.tags.join(", ");
+    recipeAllergens.value = editor.allergens.join(", ");
+    updatePreview();
+  };
+
+  const refreshStats = async () => {
+    const localStats = await getLocalStats();
+    recipeCount.textContent = String(localStats.recipeCount);
+    productCount.textContent = String(localStats.productCount);
+  };
+
+  const refreshRecipes = async () => {
+    const recipeRows = await listLocalRecipes();
+    recipeLookup.clear();
+
+    const options = [];
+    for (const recipe of recipeRows) {
+      recipeLookup.set(recipe.slug, recipe);
+      options.push(`<option value="${recipe.slug}">${recipe.name}</option>`);
+    }
+
+    recipeSelect.innerHTML = options.join("");
+    renderSelectedRecipe();
+    await loadRecipeEditor();
+  };
+
+  const showMessage = (message, isError = false) => {
+    actionResult.innerHTML = `<div class="result-message ${isError ? "error" : "success"}">${message}</div>`;
+  };
+
+  const initialize = async () => {
+    try {
+      await ensureLocalEditableDatabase();
+      const mode = getLocalDatabaseMode();
+      const modeLabel = mode === "opfs" ? "OPFS (Persistent)" : "Memory (Session)";
+      const modeStatus = mode === "opfs" ? "✓ Persistent storage" : "⚠ Session only";
+      
+      status.textContent = `Database ready: ${modeLabel}`;
+      dbMode.textContent = modeLabel;
+      dbStatus.textContent = modeStatus;
+      
+      if (mode === "memory") {
+        statusContainer.classList.add("error");
+        downloadDb.textContent = "⬇️ Export as JSON";
+      }
+      
+      await Promise.all([refreshStats(), refreshRecipes()]);
+    } catch (error) {
+      statusContainer.classList.add("error");
+      status.textContent = `Error: ${error instanceof Error ? error.message : String(error)}`;
+      dbStatus.textContent = "Failed to initialize";
+      
+      saveRecipe.disabled = true;
+      downloadDb.disabled = true;
+      recipeSelect.disabled = true;
+      recipeName.disabled = true;
+      recipePrep.disabled = true;
+      recipeCook.disabled = true;
+      recipeIngredients.disabled = true;
+      recipeSteps.disabled = true;
+      recipeTags.disabled = true;
+      recipeAllergens.disabled = true;
+      
+      tabBtns.forEach((btn) => (btn.disabled = true));
+    }
+  };
+
+  recipeSelect.addEventListener("change", async () => {
+    renderSelectedRecipe();
+    await loadRecipeEditor();
+    actionResult.innerHTML = "";
+  });
+
+  saveRecipe.addEventListener("click", async () => {
+    const slug = recipeSelect.value;
+    if (!slug) {
+      showMessage("Please select a recipe first", true);
+      return;
+    }
+
+    const prepMinutes = Number(recipePrep.value);
+    const cookMinutes = Number(recipeCook.value);
+
+    if (!Number.isFinite(prepMinutes) || prepMinutes < 0 || !Number.isFinite(cookMinutes) || cookMinutes < 0) {
+      showMessage("Prep/Cook minutes must be non-negative numbers", true);
+      return;
+    }
+
+    try {
+      await saveLocalRecipeEditor(slug, {
+        name: recipeName.value.trim() || slug,
+        prepMinutes,
+        cookMinutes,
+        ingredients: parseIngredients(recipeIngredients.value),
+        steps: recipeSteps.value
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean),
+        tags: parseList(recipeTags.value),
+        allergens: parseList(recipeAllergens.value),
+      });
+
+      showMessage("✓ Recipe saved to local browser database");
+      await Promise.all([refreshRecipes(), refreshStats()]);
+      recipeSelect.value = slug;
+      renderSelectedRecipe();
+    } catch (error) {
+      showMessage(`Save failed: ${error instanceof Error ? error.message : String(error)}`, true);
+    }
+  });
+
+  downloadDb.addEventListener("click", async () => {
+    try {
+      const fileName = await downloadLocalDatabase();
+      showMessage(`✓ Download started: ${fileName}`);
+    } catch (error) {
+      showMessage(`Download failed: ${error instanceof Error ? error.message : String(error)}`, true);
+    }
+  });
+
+  initialize();
+</script>

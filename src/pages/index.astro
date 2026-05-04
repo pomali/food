@@ -1,32 +1,27 @@
 ---
-import { getCollection, type CollectionEntry } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { getProductSummaries, getRecipeFilters, getRecipeSummaries } from "../lib/db";
 
-const allRecipes = await getCollection("recipes");
-const allProducts = await getCollection("products");
+const allRecipes = await getRecipeSummaries();
+const allProducts = await getProductSummaries();
+const recipeFilters = await getRecipeFilters();
 
 const selectedAllergen = Astro.url.searchParams.get("allergen") ?? "";
 const selectedTag = Astro.url.searchParams.get("tag") ?? "";
 const query = (Astro.url.searchParams.get("q") ?? "").trim().toLowerCase();
 
-const knownAllergens: string[] = Array.from(
-	new Set(allRecipes.flatMap((recipe: CollectionEntry<"recipes">) => recipe.data.allergens)),
-).sort((a, b) => a.localeCompare(b));
-
-const knownTags: string[] = Array.from(new Set(allRecipes.flatMap((recipe: CollectionEntry<"recipes">) => recipe.data.tags))).sort((a, b) =>
-	a.localeCompare(b),
-);
+const knownAllergens = recipeFilters.allergens;
+const knownTags = recipeFilters.tags;
 
 const recipeMatches = (value: string, recipe: (typeof allRecipes)[number]) =>
-	recipe.data.name.toLowerCase().includes(value) ||
-	recipe.id.toLowerCase().includes(value) ||
-	recipe.data.ingredients.some((ingredient: CollectionEntry<"recipes">["data"]["ingredients"][number]) => ingredient.item.toLowerCase().includes(value));
+	recipe.name.toLowerCase().includes(value) ||
+	recipe.slug.toLowerCase().includes(value);
 
-const filteredRecipes = allRecipes.filter((recipe: CollectionEntry<"recipes">) => {
-	if (selectedAllergen && recipe.data.allergens.includes(selectedAllergen)) {
+const filteredRecipes = allRecipes.filter((recipe: (typeof allRecipes)[number]) => {
+	if (selectedAllergen && recipe.allergens.includes(selectedAllergen)) {
 		return false;
 	}
-	if (selectedTag && !recipe.data.tags.includes(selectedTag)) {
+	if (selectedTag && !recipe.tags.includes(selectedTag)) {
 		return false;
 	}
 	if (query && !recipeMatches(query, recipe)) {
@@ -96,21 +91,21 @@ const filteredRecipes = allRecipes.filter((recipe: CollectionEntry<"recipes">) =
 	</section>
 
 	<section style="display:grid;grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:0.9rem;">
-		{filteredRecipes.map((recipe: CollectionEntry<"recipes">) => (
+		{filteredRecipes.map((recipe: (typeof filteredRecipes)[number]) => (
 			<article class="card" style="padding: 0.9rem;">
 				<h3 style="margin-top: 0.1rem; margin-bottom: 0.4rem;">
-					<a href={`/recipes/${recipe.id}/`} style="color:inherit;">{recipe.data.name}</a>
+					<a href={`/recipes/${recipe.slug}/`} style="color:inherit;">{recipe.name}</a>
 				</h3>
 				<p class="muted" style="margin:0 0 0.7rem;">
-					Yield {recipe.data.yieldServings} • Prep {recipe.data.prepMinutes} min • Cook {recipe.data.cookMinutes} min
+					Yield {recipe.yieldServings} • Prep {recipe.prepMinutes} min • Cook {recipe.cookMinutes} min
 				</p>
 				<div style="display:flex;flex-wrap:wrap;gap:0.35rem; margin-bottom:0.5rem;">
-					{recipe.data.tags.map((tag: string) => (
+					{recipe.tags.map((tag: string) => (
 						<span class="pill">{tag}</span>
 					))}
 				</div>
 				<div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
-					{recipe.data.allergens.length ? recipe.data.allergens.map((allergen: string) => <span class="pill">contains {allergen}</span>) :
+					{recipe.allergens.length ? recipe.allergens.map((allergen: string) => <span class="pill">contains {allergen}</span>) :
 						<span class="pill">no known allergens</span>}
 				</div>
 			</article>
@@ -120,13 +115,13 @@ const filteredRecipes = allRecipes.filter((recipe: CollectionEntry<"recipes">) =
 	<section id="products" style="margin-top:1.3rem;">
 		<h2 style="margin-bottom:0.6rem;">Products</h2>
 		<div style="display:grid;grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:0.8rem;">
-			{allProducts.map((product: CollectionEntry<"products">) => (
+			{allProducts.map((product: (typeof allProducts)[number]) => (
 				<article class="card" style="padding: 0.9rem;">
 					<h3 style="margin:0 0 0.3rem;">
-						<a href={`/products/${product.id}/`} style="color:inherit;">{product.data.name}</a>
+						<a href={`/products/${product.slug}/`} style="color:inherit;">{product.name}</a>
 					</h3>
-					<p style="margin:0.25rem 0 0.4rem;">{product.data.description}</p>
-					<p class="muted" style="margin:0;">Category: {product.data.category}</p>
+					<p style="margin:0.25rem 0 0.4rem;">{product.description}</p>
+					<p class="muted" style="margin:0;">Category: {product.category}</p>
 				</article>
 			))}
 		</div>

@@ -9,11 +9,15 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro",
-    "import:ddkk": "node scripts/import-ddkk.mjs ./DDKK.ods"
+    "astro": "astro"
   },
   "dependencies": {
+    "@tursodatabase/database": "^0.5.3",
+    "@tursodatabase/database-wasm": "^0.5.3",
     "astro": "^6.2.2",
-    "xlsx": "^0.18.5"
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0"
   }
 }

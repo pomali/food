@@ -1,42 +1,33 @@
 ---
-import { getCollection, render, type CollectionEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getRecipeBySlug, getRecipeSlugs, type RecipeDetail } from "../../lib/db";
 
 interface Props {
-  recipe: CollectionEntry<"recipes">;
+  recipe: RecipeDetail;
 }
 
 export async function getStaticPaths() {
-  const recipes = await getCollection("recipes");
-  return recipes.map((recipe) => ({
-    params: { slug: recipe.id },
-    props: { recipe },
-  }));
+  const slugs = await getRecipeSlugs();
+  return Promise.all(
+    slugs.map(async (slug: string) => ({
+      params: { slug },
+      props: { recipe: await getRecipeBySlug(slug) },
+    })),
+  );
 }
 
 const { recipe } = Astro.props as Props;
-const { Content } = await render(recipe);
-const allRecipes = await getCollection("recipes");
-const alternatives = await Promise.all(
-  recipe.data.alternatives.map(async (slug: string) => {
-    const match = allRecipes.find((candidate: CollectionEntry<"recipes">) => candidate.id === slug);
-    return match;
-  }),
-);
-const existingAlternatives = alternatives.filter(
-  (alternative): alternative is CollectionEntry<"recipes"> => Boolean(alternative),
-);
 ---
 
-<BaseLayout title={`${recipe.data.name} | Food Atlas`} description={`Recipe card for ${recipe.data.name}`}>
+<BaseLayout title={`${recipe.name} | Food Atlas`} description={`Recipe card for ${recipe.name}`}>
   <article class="card" style="padding: 1rem; margin-bottom:0.9rem;">
-    <h2 style="margin-top: 0;">{recipe.data.name}</h2>
+    <h2 style="margin-top: 0;">{recipe.name}</h2>
     <p class="muted" style="margin-top:0;">
-      Yield <strong id="base-yield">{recipe.data.yieldServings}</strong> servings • Prep
-      <strong data-base-prep={recipe.data.prepMinutes}>{recipe.data.prepMinutes}</strong> min • Cook
-      <strong data-base-cook={recipe.data.cookMinutes}>{recipe.data.cookMinutes}</strong> min
-      {recipe.data.bakeTempC && recipe.data.bakeTimeMinutes ? (
-        <> • Bake {recipe.data.bakeTempC}C / <strong data-base-bake={recipe.data.bakeTimeMinutes}>{recipe.data.bakeTimeMinutes}</strong> min</>
+      Yield <strong id="base-yield">{recipe.yieldServings}</strong> servings • Prep
+      <strong data-base-prep={recipe.prepMinutes}>{recipe.prepMinutes}</strong> min • Cook
+      <strong data-base-cook={recipe.cookMinutes}>{recipe.cookMinutes}</strong> min
+      {recipe.bakeTempC && recipe.bakeTimeMinutes ? (
+        <> • Bake {recipe.bakeTempC}C / <strong data-base-bake={recipe.bakeTimeMinutes}>{recipe.bakeTimeMinutes}</strong> min</>
       ) : null}
     </p>
 
@@ -49,8 +40,8 @@ const existingAlternatives = alternatives.filter(
           type="number"
           min="1"
           step="1"
-          value={recipe.data.yieldServings}
-          data-base-servings={recipe.data.yieldServings}
+          value={recipe.yieldServings}
+          data-base-servings={recipe.yieldServings}
           style="padding:0.45rem;border:1px solid var(--line);border-radius:10px;width:120px;"
         />
         <span id="scale-factor" class="pill">x 1.00</span>
@@ -61,7 +52,7 @@ const existingAlternatives = alternatives.filter(
     <section>
       <h3>Ingredients</h3>
       <ul id="ingredients" style="padding-left: 1.2rem;">
-        {recipe.data.ingredients.map((ingredient: CollectionEntry<"recipes">["data"]["ingredients"][number]) => (
+        {recipe.ingredients.map((ingredient) => (
           <li
             data-quantity={ingredient.quantity ?? ""}
             data-unit={ingredient.unit ?? ""}
@@ -82,51 +73,51 @@ const existingAlternatives = alternatives.filter(
     <section>
       <h3>Equipment</h3>
       <ul style="padding-left:1.2rem;">
-        {recipe.data.equipment.map((item: string) => <li>{item}</li>)}
+        {recipe.equipment.map((item: string) => <li>{item}</li>)}
       </ul>
     </section>
 
     <section>
       <h3>Cooking Procedure</h3>
       <ol style="padding-left:1.2rem;">
-        {recipe.data.cookingProcedure.map((step: string) => <li>{step}</li>)}
+        {recipe.cookingProcedure.map((step: string) => <li>{step}</li>)}
       </ol>
     </section>
 
     <section>
       <h3>Serving</h3>
-      <p>{recipe.data.servingProcedure}</p>
+      <p>{recipe.servingProcedure}</p>
     </section>
 
     <section>
       <h3>Nutritional Value</h3>
       <ul style="padding-left:1.2rem;">
-        {recipe.data.nutrition.caloriesKcalPerServing ? <li>{recipe.data.nutrition.caloriesKcalPerServing} kcal per serving</li> : null}
-        {recipe.data.nutrition.proteinGPerServing ? <li>{recipe.data.nutrition.proteinGPerServing} g protein per serving</li> : null}
-        {recipe.data.nutrition.carbsGPerServing ? <li>{recipe.data.nutrition.carbsGPerServing} g carbs per serving</li> : null}
-        {recipe.data.nutrition.fatGPerServing ? <li>{recipe.data.nutrition.fatGPerServing} g fat per serving</li> : null}
+        {recipe.nutrition.caloriesKcalPerServing ? <li>{recipe.nutrition.caloriesKcalPerServing} kcal per serving</li> : null}
+        {recipe.nutrition.proteinGPerServing ? <li>{recipe.nutrition.proteinGPerServing} g protein per serving</li> : null}
+        {recipe.nutrition.carbsGPerServing ? <li>{recipe.nutrition.carbsGPerServing} g carbs per serving</li> : null}
+        {recipe.nutrition.fatGPerServing ? <li>{recipe.nutrition.fatGPerServing} g fat per serving</li> : null}
       </ul>
-      {recipe.data.nutrition.notes ? <p>{recipe.data.nutrition.notes}</p> : null}
+      {recipe.nutrition.notes ? <p>{recipe.nutrition.notes}</p> : null}
     </section>
 
     <section>
       <h3>Allergens</h3>
-      <p>{recipe.data.allergens.length ? recipe.data.allergens.join(", ") : "No declared allergens."}</p>
+      <p>{recipe.allergens.length ? recipe.allergens.join(", ") : "No declared allergens."}</p>
     </section>
 
     <section>
       <h3>Tags</h3>
       <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
-        {recipe.data.tags.map((tag: string) => <span class="pill">{tag}</span>)}
+        {recipe.tags.map((tag: string) => <span class="pill">{tag}</span>)}
       </div>
     </section>
 
-    {existingAlternatives.length ? (
+    {recipe.alternatives.length ? (
       <section>
         <h3>Alternatives</h3>
         <ul style="padding-left:1.2rem;">
-          {existingAlternatives.map((alternative: CollectionEntry<"recipes">) => (
-            <li><a href={`/recipes/${alternative.id}/`}>{alternative.data.name}</a></li>
+          {recipe.alternatives.map((alternative) => (
+            <li><a href={`/recipes/${alternative.slug}/`}>{alternative.name}</a></li>
           ))}
         </ul>
       </section>
@@ -134,7 +125,7 @@ const existingAlternatives = alternatives.filter(
 
     <section>
       <h3>Notes</h3>
-      <Content />
+      <div set:html={recipe.notesHtml} />
     </section>
   </article>
 </BaseLayout>
