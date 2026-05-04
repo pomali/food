@@ -1,17 +1,134 @@
 ---
+import { getCollection, type CollectionEntry } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
 
+const allRecipes = await getCollection("recipes");
+const allProducts = await getCollection("products");
+
+const selectedAllergen = Astro.url.searchParams.get("allergen") ?? "";
+const selectedTag = Astro.url.searchParams.get("tag") ?? "";
+const query = (Astro.url.searchParams.get("q") ?? "").trim().toLowerCase();
+
+const knownAllergens: string[] = Array.from(
+	new Set(allRecipes.flatMap((recipe: CollectionEntry<"recipes">) => recipe.data.allergens)),
+).sort((a, b) => a.localeCompare(b));
+
+const knownTags: string[] = Array.from(new Set(allRecipes.flatMap((recipe: CollectionEntry<"recipes">) => recipe.data.tags))).sort((a, b) =>
+	a.localeCompare(b),
+);
+
+const recipeMatches = (value: string, recipe: (typeof allRecipes)[number]) =>
+	recipe.data.name.toLowerCase().includes(value) ||
+	recipe.id.toLowerCase().includes(value) ||
+	recipe.data.ingredients.some((ingredient: CollectionEntry<"recipes">["data"]["ingredients"][number]) => ingredient.item.toLowerCase().includes(value));
+
+const filteredRecipes = allRecipes.filter((recipe: CollectionEntry<"recipes">) => {
+	if (selectedAllergen && recipe.data.allergens.includes(selectedAllergen)) {
+		return false;
+	}
+	if (selectedTag && !recipe.data.tags.includes(selectedTag)) {
+		return false;
+	}
+	if (query && !recipeMatches(query, recipe)) {
+		return false;
+	}
+	return true;
+});
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout title="Food Atlas | Recipes and Products" description="Markdown-first recipes and products with filtering and scaling.">
+	<section class="card" style="padding: 1rem 1rem 1.2rem; margin-bottom: 1rem;">
+		<h2 style="margin-top: 0.2rem; margin-bottom: 0.4rem;">Recipes</h2>
+		<p class="muted" style="margin-top: 0;">Everything is markdown-based for easy LLM indexing and retrieval.</p>
+
+		<form style="display:grid;grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:0.6rem;" method="get">
+			<label>
+				Search by recipe or ingredient
+				<input
+					name="q"
+					value={query}
+					placeholder="e.g. bacon"
+					style="width:100%;padding:0.5rem;border:1px solid var(--line);border-radius:10px;"
+				/>
+			</label>
+
+			<label>
+				Exclude allergen
+				<select
+					name="allergen"
+					style="width:100%;padding:0.5rem;border:1px solid var(--line);border-radius:10px;background:#fffdf6;"
+				>
+					<option value="">No allergen filter</option>
+					{knownAllergens.map((allergen: string) => (
+						<option value={allergen} selected={allergen === selectedAllergen}>{allergen}</option>
+					))}
+				</select>
+			</label>
+
+			<label>
+				Tag
+				<select
+					name="tag"
+					style="width:100%;padding:0.5rem;border:1px solid var(--line);border-radius:10px;background:#fffdf6;"
+				>
+					<option value="">All tags</option>
+					{knownTags.map((tag: string) => (
+						<option value={tag} selected={tag === selectedTag}>{tag}</option>
+					))}
+				</select>
+			</label>
+
+			<div style="display:flex;align-items:flex-end;gap:0.4rem;">
+				<button
+					type="submit"
+					style="padding:0.55rem 1rem;border:0;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;"
+				>
+					Apply
+				</button>
+				<a
+					href="/"
+					style="padding:0.55rem 1rem;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:inherit;background:#fffdf6;"
+				>
+					Reset
+				</a>
+			</div>
+		</form>
+	</section>
+
+	<section style="display:grid;grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:0.9rem;">
+		{filteredRecipes.map((recipe: CollectionEntry<"recipes">) => (
+			<article class="card" style="padding: 0.9rem;">
+				<h3 style="margin-top: 0.1rem; margin-bottom: 0.4rem;">
+					<a href={`/recipes/${recipe.id}/`} style="color:inherit;">{recipe.data.name}</a>
+				</h3>
+				<p class="muted" style="margin:0 0 0.7rem;">
+					Yield {recipe.data.yieldServings} • Prep {recipe.data.prepMinutes} min • Cook {recipe.data.cookMinutes} min
+				</p>
+				<div style="display:flex;flex-wrap:wrap;gap:0.35rem; margin-bottom:0.5rem;">
+					{recipe.data.tags.map((tag: string) => (
+						<span class="pill">{tag}</span>
+					))}
+				</div>
+				<div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+					{recipe.data.allergens.length ? recipe.data.allergens.map((allergen: string) => <span class="pill">contains {allergen}</span>) :
+						<span class="pill">no known allergens</span>}
+				</div>
+			</article>
+		))}
+	</section>
+
+	<section id="products" style="margin-top:1.3rem;">
+		<h2 style="margin-bottom:0.6rem;">Products</h2>
+		<div style="display:grid;grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:0.8rem;">
+			{allProducts.map((product: CollectionEntry<"products">) => (
+				<article class="card" style="padding: 0.9rem;">
+					<h3 style="margin:0 0 0.3rem;">
+						<a href={`/products/${product.id}/`} style="color:inherit;">{product.data.name}</a>
+					</h3>
+					<p style="margin:0.25rem 0 0.4rem;">{product.data.description}</p>
+					<p class="muted" style="margin:0;">Category: {product.data.category}</p>
+				</article>
+			))}
+		</div>
+	</section>
+</BaseLayout>

@@ -1,0 +1,222 @@
+---
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+interface Props {
+  recipe: CollectionEntry<"recipes">;
+}
+
+export async function getStaticPaths() {
+  const recipes = await getCollection("recipes");
+  return recipes.map((recipe) => ({
+    params: { slug: recipe.id },
+    props: { recipe },
+  }));
+}
+
+const { recipe } = Astro.props as Props;
+const { Content } = await render(recipe);
+const allRecipes = await getCollection("recipes");
+const alternatives = await Promise.all(
+  recipe.data.alternatives.map(async (slug: string) => {
+    const match = allRecipes.find((candidate: CollectionEntry<"recipes">) => candidate.id === slug);
+    return match;
+  }),
+);
+const existingAlternatives = alternatives.filter(
+  (alternative): alternative is CollectionEntry<"recipes"> => Boolean(alternative),
+);
+---
+
+<BaseLayout title={`${recipe.data.name} | Food Atlas`} description={`Recipe card for ${recipe.data.name}`}>
+  <article class="card" style="padding: 1rem; margin-bottom:0.9rem;">
+    <h2 style="margin-top: 0;">{recipe.data.name}</h2>
+    <p class="muted" style="margin-top:0;">
+      Yield <strong id="base-yield">{recipe.data.yieldServings}</strong> servings • Prep
+      <strong data-base-prep={recipe.data.prepMinutes}>{recipe.data.prepMinutes}</strong> min • Cook
+      <strong data-base-cook={recipe.data.cookMinutes}>{recipe.data.cookMinutes}</strong> min
+      {recipe.data.bakeTempC && recipe.data.bakeTimeMinutes ? (
+        <> • Bake {recipe.data.bakeTempC}C / <strong data-base-bake={recipe.data.bakeTimeMinutes}>{recipe.data.bakeTimeMinutes}</strong> min</>
+      ) : null}
+    </p>
+
+    <section class="card" style="padding:0.8rem; margin-bottom: 0.9rem;">
+      <h3 style="margin-top:0;">Scale Recipe</h3>
+      <label for="target-servings">Target servings</label>
+      <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+        <input
+          id="target-servings"
+          type="number"
+          min="1"
+          step="1"
+          value={recipe.data.yieldServings}
+          data-base-servings={recipe.data.yieldServings}
+          style="padding:0.45rem;border:1px solid var(--line);border-radius:10px;width:120px;"
+        />
+        <span id="scale-factor" class="pill">x 1.00</span>
+      </div>
+      <p class="muted" style="margin-bottom:0;">Prep and cooking times are scaled linearly to match your request.</p>
+    </section>
+
+    <section>
+      <h3>Ingredients</h3>
+      <ul id="ingredients" style="padding-left: 1.2rem;">
+        {recipe.data.ingredients.map((ingredient: CollectionEntry<"recipes">["data"]["ingredients"][number]) => (
+          <li
+            data-quantity={ingredient.quantity ?? ""}
+            data-unit={ingredient.unit ?? ""}
+            data-item={ingredient.item}
+            data-note={ingredient.note ?? ""}
+            data-scalable={ingredient.scalable ? "true" : "false"}
+          >
+            {ingredient.quantity ? `${ingredient.quantity} ` : ""}
+            {ingredient.unit ? `${ingredient.unit} ` : ""}
+            {ingredient.item}
+            {ingredient.note ? ` (${ingredient.note})` : ""}
+            {!ingredient.scalable ? " (fixed)" : ""}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section>
+      <h3>Equipment</h3>
+      <ul style="padding-left:1.2rem;">
+        {recipe.data.equipment.map((item: string) => <li>{item}</li>)}
+      </ul>
+    </section>
+
+    <section>
+      <h3>Cooking Procedure</h3>
+      <ol style="padding-left:1.2rem;">
+        {recipe.data.cookingProcedure.map((step: string) => <li>{step}</li>)}
+      </ol>
+    </section>
+
+    <section>
+      <h3>Serving</h3>
+      <p>{recipe.data.servingProcedure}</p>
+    </section>
+
+    <section>
+      <h3>Nutritional Value</h3>
+      <ul style="padding-left:1.2rem;">
+        {recipe.data.nutrition.caloriesKcalPerServing ? <li>{recipe.data.nutrition.caloriesKcalPerServing} kcal per serving</li> : null}
+        {recipe.data.nutrition.proteinGPerServing ? <li>{recipe.data.nutrition.proteinGPerServing} g protein per serving</li> : null}
+        {recipe.data.nutrition.carbsGPerServing ? <li>{recipe.data.nutrition.carbsGPerServing} g carbs per serving</li> : null}
+        {recipe.data.nutrition.fatGPerServing ? <li>{recipe.data.nutrition.fatGPerServing} g fat per serving</li> : null}
+      </ul>
+      {recipe.data.nutrition.notes ? <p>{recipe.data.nutrition.notes}</p> : null}
+    </section>
+
+    <section>
+      <h3>Allergens</h3>
+      <p>{recipe.data.allergens.length ? recipe.data.allergens.join(", ") : "No declared allergens."}</p>
+    </section>
+
+    <section>
+      <h3>Tags</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:0.35rem;">
+        {recipe.data.tags.map((tag: string) => <span class="pill">{tag}</span>)}
+      </div>
+    </section>
+
+    {existingAlternatives.length ? (
+      <section>
+        <h3>Alternatives</h3>
+        <ul style="padding-left:1.2rem;">
+          {existingAlternatives.map((alternative: CollectionEntry<"recipes">) => (
+            <li><a href={`/recipes/${alternative.id}/`}>{alternative.data.name}</a></li>
+          ))}
+        </ul>
+      </section>
+    ) : null}
+
+    <section>
+      <h3>Notes</h3>
+      <Content />
+    </section>
+  </article>
+</BaseLayout>
+
+<script>
+  // @ts-nocheck
+  /** @type {HTMLInputElement | null} */
+  const servingsInput = document.querySelector("#target-servings");
+  /** @type {HTMLElement | null} */
+  const scaleFactorElement = document.querySelector("#scale-factor");
+  /** @type {HTMLElement | null} */
+  const prepNode = document.querySelector("[data-base-prep]");
+  /** @type {HTMLElement | null} */
+  const cookNode = document.querySelector("[data-base-cook]");
+  /** @type {HTMLElement | null} */
+  const bakeNode = document.querySelector("[data-base-bake]");
+
+  /** @param {number} value */
+  const formatNumber = (value) => {
+    if (!Number.isFinite(value)) return "";
+    if (Math.abs(value - Math.round(value)) < 0.001) return `${Math.round(value)}`;
+    return value.toFixed(2).replace(/\.00$/, "").replace(/0$/, "");
+  };
+
+  /** @param {Element} element @param {number} factor */
+  const updateIngredient = (element, factor) => {
+    if (!(element instanceof HTMLLIElement)) {
+      return;
+    }
+
+    const quantityRaw = element.dataset.quantity;
+    const unit = element.dataset.unit;
+    const item = element.dataset.item;
+    const note = element.dataset.note;
+    const scalable = element.dataset.scalable === "true";
+
+    let quantityText = "";
+    if (quantityRaw && scalable) {
+      quantityText = `${formatNumber(Number(quantityRaw) * factor)} `;
+    } else if (quantityRaw && !scalable) {
+      quantityText = `${quantityRaw} `;
+    }
+
+    const fixedText = scalable ? "" : " (fixed)";
+    const noteText = note ? ` (${note})` : "";
+    element.textContent = `${quantityText}${unit ? `${unit} ` : ""}${item}${noteText}${fixedText}`;
+  };
+
+  /** @param {number} factor */
+  const updateTimes = (factor) => {
+    if (prepNode) {
+      const base = Number(prepNode.dataset.basePrep);
+      prepNode.textContent = formatNumber(base * factor);
+    }
+    if (cookNode) {
+      const base = Number(cookNode.dataset.baseCook);
+      cookNode.textContent = formatNumber(base * factor);
+    }
+    if (bakeNode) {
+      const base = Number(bakeNode.dataset.baseBake);
+      bakeNode.textContent = formatNumber(base * factor);
+    }
+  };
+
+  const onServingsChange = () => {
+    if (!servingsInput) return;
+
+    const target = Number(servingsInput.value);
+    const base = Number(servingsInput.dataset.baseServings);
+
+    if (!Number.isFinite(target) || target <= 0 || !Number.isFinite(base) || base <= 0) {
+      return;
+    }
+
+    const factor = target / base;
+    if (scaleFactorElement) {
+      scaleFactorElement.textContent = `x ${factor.toFixed(2)}`;
+    }
+
+    document.querySelectorAll("#ingredients li").forEach((li) => updateIngredient(li, factor));
+    updateTimes(factor);
+  };
+
+  servingsInput?.addEventListener("input", onServingsChange);
+</script>

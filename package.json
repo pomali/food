@@ -9,9 +9,11 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "import:ddkk": "node scripts/import-ddkk.mjs ./DDKK.ods"
   },
   "dependencies": {
-    "astro": "^6.2.2"
+    "astro": "^6.2.2",
+    "xlsx": "^0.18.5"
   }
 }

@@ -1,0 +1,124 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Recipe and product knowledge base in markdown" } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>{title}</title>
+    <style>
+      :root {
+        --bg-a: #fff6e8;
+        --bg-b: #f8e4c8;
+        --ink: #2f241b;
+        --card: #fffef7;
+        --line: #d9b37a;
+        --accent: #a24715;
+        --accent-2: #446b2b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", Tahoma, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 10%, #ffe0b3 0%, transparent 30%),
+          radial-gradient(circle at 90% 5%, #f2d6ae 0%, transparent 35%),
+          linear-gradient(180deg, var(--bg-a), var(--bg-b));
+        min-height: 100vh;
+      }
+
+      .shell {
+        width: min(1120px, 92vw);
+        margin: 0 auto;
+        padding: 2rem 0 4rem;
+      }
+
+      .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1.6rem;
+      }
+
+      .brand {
+        font-family: "Bitter", Georgia, serif;
+        font-size: clamp(1.25rem, 2vw, 1.7rem);
+        margin: 0;
+      }
+
+      .nav {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .nav a {
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: inherit;
+        text-decoration: none;
+        background: #fffaef;
+      }
+
+      .nav a:hover {
+        border-color: var(--accent);
+      }
+
+      .card {
+        background: color-mix(in srgb, var(--card) 92%, white);
+        border: 1px solid color-mix(in srgb, var(--line) 80%, #fff);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(79, 42, 0, 0.08);
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 0.22rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        font-size: 0.8rem;
+        background: #fff7e8;
+      }
+
+      .muted {
+        color: color-mix(in srgb, var(--ink) 65%, white);
+      }
+
+      @media (max-width: 700px) {
+        .shell {
+          width: min(96vw, 1120px);
+          padding-top: 1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <h1 class="brand"><a href="/" style="text-decoration:none;color:inherit;">Food Atlas</a></h1>
+        <nav class="nav" aria-label="Primary">
+          <a href="/">Recipes</a>
+          <a href="/#products">Products</a>
+        </nav>
+      </header>
+      <slot />
+    </main>
+  </body>
+</html>
